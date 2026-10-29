@@ -12,7 +12,6 @@ import type {
 import { Download, Lock, RotateCcw, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 
-import { trackStarsFetched } from "@/lib/analytics";
 import {
   categorizeRepos,
   filterRepos,
@@ -34,7 +33,6 @@ import { GitHubStars } from "@/components/github-stars";
 import { ProgressIndicator } from "@/components/progress-indicator";
 import { RateLimitIndicator } from "@/components/rate-limit-indicator";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { TokenInput } from "@/components/token-input";
 import { UsernameInput } from "@/components/username-input";
 
 const SESSION_STORAGE_KEY = "starcorn:session";
@@ -52,8 +50,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isPartial, setIsPartial] = useState(false);
   const [username, setUsername] = useState("");
-  const [token, setToken] = useState<string | null>(null);
-  const [requiresToken, setRequiresToken] = useState(false);
   const [isOrganization, setIsOrganization] = useState(false);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -180,7 +176,6 @@ export default function Home() {
       setRepos([]);
       setError(null);
       setIsPartial(false);
-      setRequiresToken(false);
       setIsOrganization(false);
       setSelectedCategory(null);
       setSearchQuery("");
@@ -192,7 +187,7 @@ export default function Home() {
         estimatedTotal: 0,
       });
 
-      const result = await fetchStarredRepos(inputUsername, token, (p) => {
+      const result = await fetchStarredRepos(inputUsername, null, (p) => {
         setProgress(p);
       });
 
@@ -200,9 +195,6 @@ export default function Home() {
       setIsPartial(result.isPartial);
       setRateLimit(result.rateLimit);
 
-      if (result.requiresToken) {
-        setRequiresToken(true);
-      }
       if (result.isOrganization) {
         setIsOrganization(true);
       }
@@ -213,13 +205,11 @@ export default function Home() {
       } else if (result.error) {
         setError(result.error);
         setStatus("success");
-        trackStarsFetched(result.repos.length);
       } else {
         setStatus("success");
-        trackStarsFetched(result.repos.length);
       }
     },
-    [token]
+    []
   );
 
   const handleRetry = () => {
@@ -265,7 +255,7 @@ export default function Home() {
           <p className="text-muted-foreground mx-auto mt-4 max-w-lg text-lg">
             Organize and export your GitHub starred repositories.
             <br />
-            <span className="text-foreground/80">Zero auth. Fully private. Instant.</span>
+            <span className="text-foreground/80">No sign-in. No token. Browse public stars.</span>
           </p>
         </header>
 
@@ -278,23 +268,18 @@ export default function Home() {
             }
           />
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-            <TokenInput
-              onTokenChange={setToken}
-              disabled={status === "fetching"}
-              required={requiresToken}
-            />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-muted-foreground text-xs">
+              No GitHub token needed. Public starred repositories only.
+            </p>
             {rateLimit && <RateLimitIndicator rateLimit={rateLimit} />}
             {status === "idle" && !rateLimit && (
-              <p className="text-muted-foreground text-sm">
-                or{" "}
-                <button
-                  onClick={handleLoadDemo}
-                  className="text-primary cursor-pointer underline-offset-4 hover:underline"
-                >
-                  try a demo
-                </button>
-              </p>
+              <button
+                onClick={handleLoadDemo}
+                className="text-primary cursor-pointer text-sm underline-offset-4 hover:underline"
+              >
+                Try a demo
+              </button>
             )}
           </div>
         </div>
@@ -303,8 +288,8 @@ export default function Home() {
           <div className="mx-auto mt-16 grid max-w-3xl gap-4 sm:grid-cols-3">
             <FeatureCard
               icon={<Lock className="h-5 w-5" />}
-              title="100% Private"
-              description="Data stays in your browser. Nothing is stored or sent anywhere."
+              title="No Credentials"
+              description="Direct public GitHub API requests. No personal access token needed."
             />
             <FeatureCard
               icon={<Download className="h-5 w-5" />}
