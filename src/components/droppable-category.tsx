@@ -4,9 +4,12 @@ import { forwardRef } from "react";
 
 import type { Category } from "@/lib/categories";
 import { DraggableRepoCard } from "@/components/draggable-repo-card";
+import { Button } from "@/components/ui/button";
 
 interface DroppableCategoryProps {
   category: Category;
+  visibleCount: number;
+  onLoadMore: () => void;
 }
 
 /**
@@ -17,7 +20,7 @@ interface DroppableCategoryProps {
  * the `DroppableCategoryTile` tiles in the `CategoryGrid` above.
  */
 export const DroppableCategory = forwardRef<HTMLDivElement, DroppableCategoryProps>(
-  function DroppableCategory({ category }, ref) {
+  function DroppableCategory({ category, visibleCount, onLoadMore }, ref) {
     if (category.repos.length === 0) {
       return (
         <div
@@ -33,6 +36,9 @@ export const DroppableCategory = forwardRef<HTMLDivElement, DroppableCategoryPro
         </div>
       );
     }
+
+    const visibleRepos = category.repos.slice(0, visibleCount);
+    const remainingCount = category.repos.length - visibleRepos.length;
 
     return (
       <div ref={ref}>
@@ -54,10 +60,20 @@ export const DroppableCategory = forwardRef<HTMLDivElement, DroppableCategoryPro
           </span>
         </div>
         <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {category.repos.map((repo) => (
+          {visibleRepos.map((repo) => (
             <DraggableRepoCard key={repo.id} repo={repo} />
           ))}
         </div>
+        {remainingCount > 0 && (
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <p className="text-muted-foreground text-sm">
+              Showing {visibleRepos.length} of {category.repos.length} repositories
+            </p>
+            <Button type="button" variant="outline" onClick={onLoadMore}>
+              Show more ({remainingCount} remaining)
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
