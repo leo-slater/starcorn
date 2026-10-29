@@ -20,7 +20,7 @@ import {
   type SortOption,
 } from "@/lib/categories";
 import { DEMO_REPOS, DEMO_USERNAME } from "@/lib/demo-data";
-import { fetchStarredRepos } from "@/lib/github";
+import { compactRepo, fetchStarredRepos } from "@/lib/github";
 import { Button } from "@/components/ui/button";
 import { CategoryGrid } from "@/components/category-grid";
 import { RepoDndProvider } from "@/components/dnd-provider";
@@ -36,6 +36,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UsernameInput } from "@/components/username-input";
 
 const SESSION_STORAGE_KEY = "starcorn:session";
+const VISIBLE_BATCH_SIZE = 24;
 
 interface SessionData {
   username: string;
@@ -46,6 +47,7 @@ interface SessionData {
 export default function Home() {
   const [status, setStatus] = useState<FetchStatus>("idle");
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_BATCH_SIZE);
   const [progress, setProgress] = useState<FetchProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPartial, setIsPartial] = useState(false);
@@ -66,7 +68,7 @@ export default function Home() {
       if (saved) {
         const data: SessionData = JSON.parse(saved);
         setUsername(data.username);
-        setRepos(data.repos);
+        setRepos(Array.isArray(data.repos) ? data.repos.map(compactRepo) : []);
         setCategoryOverrides(data.categoryOverrides);
         setStatus("success");
         setTimeout(() => {
@@ -88,7 +90,12 @@ export default function Home() {
   useEffect(() => {
     if (!isHydrated || repos.length === 0 || username === DEMO_USERNAME) return;
     const data: SessionData = { username, repos, categoryOverrides };
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // Session storage can be unavailable or quota-limited on iOS.
+      // The in-memory collection stays usable and can still be exported.
+    }
   }, [isHydrated, username, repos, categoryOverrides]);
 
   const hasManualOverrides = Object.keys(categoryOverrides).length > 0;
@@ -117,6 +124,7 @@ export default function Home() {
   }, [filteredCategories, selectedCategory, allReposFiltered]);
 
   const handleCategorySelect = useCallback((categoryName: string) => {
+    setVisibleCount(VISIBLE_BATCH_SIZE);
     if (categoryName === "__all__") {
       setSelectedCategory(null);
     } else {
@@ -170,7 +178,12 @@ export default function Home() {
 
   const handleFetch = useCallback(
     async (inputUsername: string) => {
-      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      try {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch {
+        // Browsers can disable session storage.
+      }
+      setVisibleCount(VISIBLE_BATCH_SIZE);
       setUsername(inputUsername);
       setStatus("fetching");
       setRepos([]);
@@ -219,6 +232,7 @@ export default function Home() {
   };
 
   const handleLoadDemo = useCallback(() => {
+    setVisibleCount(VISIBLE_BATCH_SIZE);
     setUsername(DEMO_USERNAME);
     setRepos(DEMO_REPOS);
     setStatus("success");
@@ -365,9 +379,15 @@ export default function Home() {
 
                 <FilterControls
                   searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
+                  onSearchChange={(value) => {
+                    setSearchQuery(value);
+                    setVisibleCount(VISIBLE_BATCH_SIZE);
+                  }}
                   sortOption={sortOption}
-                  onSortChange={setSortOption}
+                  onSortChange={(value) => {
+                    setSortOption(value);
+                    setVisibleCount(VISIBLE_BATCH_SIZE);
+                  }}
                 />
               </div>
 
@@ -380,7 +400,12 @@ export default function Home() {
                 />
 
                 {selectedCategoryData && (
-                  <DroppableCategory ref={categorySectionRef} category={selectedCategoryData} />
+                  <DroppableCategory
+                    ref={categorySectionRef}
+                    category={selectedCategoryData}
+                    visibleCount={visibleCount}
+                    onLoadMore={() => setVisibleCount((count) => count + VISIBLE_BATCH_SIZE)}
+                  />
                 )}
               </RepoDndProvider>
 
