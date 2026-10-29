@@ -1,4 +1,4 @@
 User-agent: *
-Allow: /
+Allow: /starcorn/
 
-Sitemap: https://starcorn.dev/sitemap.xml
+Sitemap: https://leo-slater.github.io/starcorn/sitemap.xml
