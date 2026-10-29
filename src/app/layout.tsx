@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { basePath, siteUrl } from "@/lib/config";
 import { Toaster } from "@/components/ui/sonner";
-import { PostHogProvider } from "@/components/posthog-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
@@ -70,12 +69,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
-        <PostHogProvider>
-          <ThemeProvider>
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </PostHogProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
