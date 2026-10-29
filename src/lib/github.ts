@@ -3,6 +3,31 @@ import type { FetchProgress, FetchResult, GitHubRepo, RateLimitInfo } from "@/ty
 const GITHUB_API_BASE = "https://api.github.com";
 const PER_PAGE = 100;
 
+/**
+ * GitHub's API returns many large fields per repository that the UI never uses.
+ * Retain only what's needed for rendering, categorization and exports.
+ * Keeping full API objects can exhaust mobile WebView memory and sessionStorage.
+ */
+export function compactRepo(repo: GitHubRepo): GitHubRepo {
+  return {
+    id: repo.id,
+    name: repo.name,
+    full_name: repo.full_name,
+    description: repo.description,
+    html_url: repo.html_url,
+    stargazers_count: repo.stargazers_count,
+    language: repo.language,
+    topics: Array.isArray(repo.topics) ? repo.topics : [],
+    owner: {
+      login: repo.owner.login,
+      avatar_url: repo.owner.avatar_url,
+    },
+    updated_at: repo.updated_at,
+    fork: repo.fork,
+    private: repo.private,
+  };
+}
+
 function parseRateLimitHeaders(headers: Headers): RateLimitInfo | undefined {
   const remaining = headers.get("X-RateLimit-Remaining");
   const limit = headers.get("X-RateLimit-Limit");
@@ -130,7 +155,7 @@ export async function fetchStarredRepos(
     estimatedTotal = lastPage * PER_PAGE;
 
     const firstPageData: GitHubRepo[] = await firstResponse.json();
-    const publicRepos = firstPageData.filter((repo) => !repo.private);
+    const publicRepos = firstPageData.filter((repo) => !repo.private).map(compactRepo);
     repos.push(...publicRepos);
 
     onProgress({
@@ -177,7 +202,7 @@ export async function fetchStarredRepos(
       }
 
       const pageData: GitHubRepo[] = await response.json();
-      const publicPageRepos = pageData.filter((repo) => !repo.private);
+      const publicPageRepos = pageData.filter((repo) => !repo.private).map(compactRepo);
       repos.push(...publicPageRepos);
 
       onProgress({
