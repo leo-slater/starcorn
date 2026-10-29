@@ -1,7 +1,7 @@
 import type { FetchProgress, FetchResult, GitHubRepo, RateLimitInfo } from "@/types";
 
 const GITHUB_API_BASE = "https://api.github.com";
-const PER_PAGE = 30;
+const PER_PAGE = 100;
 
 function parseRateLimitHeaders(headers: Headers): RateLimitInfo | undefined {
   const remaining = headers.get("X-RateLimit-Remaining");
@@ -104,7 +104,7 @@ export async function fetchStarredRepos(
           return {
             repos: [],
             isPartial: false,
-            error: "Rate limit exceeded. Add a GitHub token to continue, or wait a bit.",
+            error: "GitHub API rate limit reached. Wait for the reset time shown and try again.",
             requiresToken: true,
             rateLimit,
           };
@@ -140,17 +140,6 @@ export async function fetchStarredRepos(
       estimatedTotal,
     });
 
-    if (totalPages > 1 && !token && estimatedTotal > 500) {
-      return {
-        repos,
-        isPartial: true,
-        error: `This user has ~${estimatedTotal} stars. Add a token to fetch them all.`,
-        requiresToken: true,
-        estimatedTotal,
-        rateLimit,
-      };
-    }
-
     for (currentPage = 2; currentPage <= totalPages; currentPage++) {
       if (signal?.aborted) {
         return {
@@ -173,7 +162,7 @@ export async function fetchStarredRepos(
           return {
             repos,
             isPartial: true,
-            error: `Rate limit hit after ${repos.length} stars. Add a token to continue.`,
+            error: `Rate limit reached after ${repos.length} stars. Try again after GitHub resets the limit.`,
             requiresToken: true,
             estimatedTotal,
             rateLimit,
